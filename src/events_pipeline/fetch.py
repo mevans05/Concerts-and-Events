@@ -40,17 +40,27 @@ def _date_window(lookahead_days: int) -> tuple[str, str]:
 
 def _base_params(config: Config, api_key: str) -> dict:
     start, end = _date_window(config.lookahead_days)
-    return {
+    loc = config.location
+    params = {
         "apikey": api_key,
-        "city": config.location.city,
-        "countryCode": config.location.country_code,
-        "radius": config.location.radius,
-        "unit": config.location.unit,
+        "countryCode": loc.country_code,
+        "radius": loc.radius,
+        "unit": loc.unit,
         "startDateTime": start,
         "endDateTime": end,
         "size": PAGE_SIZE,
         "sort": "date,asc",
     }
+    # postalCode alone is enough for Ticketmaster to geocode a search center
+    # and sidesteps city-name collisions (there's a Franklin in a dozen
+    # states) — prefer it whenever it's set, falling back to city otherwise.
+    if loc.postal_code:
+        params["postalCode"] = loc.postal_code
+    else:
+        params["city"] = loc.city
+    if loc.state_code:
+        params["stateCode"] = loc.state_code
+    return params
 
 
 def _paged_fetch(session: requests.Session, params: dict) -> list[dict]:

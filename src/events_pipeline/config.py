@@ -21,6 +21,8 @@ DEFAULT_CATEGORIES = {
 @dataclass
 class Location:
     city: str
+    state_code: str | None = None
+    postal_code: str | None = None
     country_code: str = "US"
     radius: int = 50
     unit: str = "miles"
@@ -58,6 +60,8 @@ def load_config(path: str = "config.yaml") -> Config:
     loc_raw = raw.get("location", {})
     location = Location(
         city=loc_raw.get("city", "Denver"),
+        state_code=loc_raw.get("state_code") or None,
+        postal_code=str(loc_raw["postal_code"]) if loc_raw.get("postal_code") else None,
         country_code=loc_raw.get("country_code", "US"),
         radius=int(loc_raw.get("radius", 50)),
         unit=loc_raw.get("unit", "miles"),

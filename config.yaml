@@ -3,11 +3,19 @@
 # TICKETMASTER_API_KEY environment variable (a GitHub Actions secret in CI).
 
 location:
-  # City name as recognized by Ticketmaster, e.g. "Denver", "Austin".
-  city: "Denver"
+  # City name — used only as a label/fallback. With postal_code set below,
+  # this isn't what actually anchors the search, so it doesn't need to be
+  # Ticketmaster-exact.
+  city: "Franklin"
+  state_code: "MA"
+  # postal_code (if set) is what actually geocodes the search center —
+  # prefer it over city, since city names collide across states (there's a
+  # Franklin in a dozen of them). Franklin, MA is a small town, so radius
+  # is set wide enough to comfortably reach Boston (~28mi), Providence
+  # (~24mi), and Worcester (~26mi) as well.
+  postal_code: "02038"
   country_code: "US"
-  # Search radius around the city.
-  radius: 50
+  radius: 40
   unit: "miles"
 
 # How many days ahead to look for events on each run.
