@@ -1,7 +1,99 @@
+# Configuration for the daily events recommender.
+# Nothing secret goes here — the Ticketmaster API key is supplied via the
+# TICKETMASTER_API_KEY environment variable (a GitHub Actions secret in CI).
+
 location:
+  # City name — used only as a label/fallback. With postal_code set below,
+  # this isn't what actually anchors the search, so it doesn't need to be
+  # Ticketmaster-exact.
   city: "Franklin"
   state_code: "MA"
+  # postal_code (if set) is what actually geocodes the search center —
+  # prefer it over city, since city names collide across states (there's a
+  # Franklin in a dozen of them). Franklin, MA is a small town, so radius
+  # is set wide enough to comfortably reach Boston (~28mi), Providence
+  # (~24mi), and Worcester (~26mi) as well.
   postal_code: "02038"
   country_code: "US"
-  radius: 60
+  radius: 40
   unit: "miles"
+
+# How many days ahead to look for events on each run.
+lookahead_days: 30
+
+# Maximum number of newly-recommended events written to the sheet per day.
+max_daily_recommendations: 25
+
+# An event's learned score must be at least this to be recommended.
+# Lower this to see more events (including ones you haven't reacted to yet);
+# raise it once the model has learned your tastes to tighten the list.
+min_score_threshold: 0.35
+
+# How aggressively feedback updates the preference model each run.
+# 0.05 = slow/steady learning, 0.3 = fast/aggressive learning.
+learning_rate: 0.15
+
+# Categories to consider. Set to false to stop recommending a category
+# entirely regardless of learned score.
+categories:
+  Concert: true
+  Art: true
+  Cultural: true
+  Fair: true
+  Comedy: true
+  "Brewery/Beer": true
+  Rugby: true
+  Other: false
+
+# Optional: pull in your personal Google Calendar and/or public calendar
+# feeds. See README.md "Google Calendar setup" for the one-time OAuth step
+# needed for `enabled: true` below (public_feeds alone need no auth).
+google_calendar:
+  # Requires GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_REFRESH_TOKEN
+  # (see scripts/google_oauth_setup.py). Leave false to skip personal
+  # calendar access entirely and still use public_feeds below.
+  enabled: false
+  calendar_id: "primary"
+
+  # Flag (don't drop) recommended events that overlap something already on
+  # your calendar, with this many minutes of buffer on each side.
+  conflict_buffer_minutes: 30
+  # Set true to drop conflicting events from recommendations entirely
+  # instead of just flagging them in the "Calendar Conflict" column.
+  exclude_conflicts: false
+
+  # Treat a past calendar event that matches a recommended event (same day,
+  # similar title) as implicit "Attended" feedback.
+  learn_from_past_events: true
+  # How many days back to check for newly-passed events each run.
+  attendance_lookback_days: 3
+
+  # Public iCal feeds to pull events from directly — no personal auth
+  # needed. Good for a venue's published schedule, a league's fixture
+  # calendar, or a public Google Calendar's "Secret address in iCal
+  # format" (Calendar settings -> Integrate calendar).
+  public_feeds: []
+  # Example:
+  # public_feeds:
+  #   - name: "riverside-brewery"
+  #     url: "https://example.com/riverside-brewery/events.ics"
+  #     category_hint: "Brewery/Beer"
+  #   - name: "city-rugby-club"
+  #     url: "https://example.com/rugby-club/fixtures.ics"
+  #     category_hint: "Rugby"
+
+# Read/write the workbook as a live Google Sheet instead of the local
+# data/events.xlsx file — open it in a browser, edit the Feedback column
+# from your phone, no downloading/uploading a file. Reuses the exact same
+# credentials as google_calendar above (GOOGLE_CLIENT_ID /
+# GOOGLE_CLIENT_SECRET / GOOGLE_REFRESH_TOKEN); see
+# scripts/google_oauth_setup.py, which now requests both Calendar and
+# Sheets scopes in one pass. Falls back to the local .xlsx file with a
+# warning if those secrets aren't set.
+google_sheets:
+  enabled: true
+  # Leave blank to auto-create a new sheet on first run — its ID is then
+  # cached in data/google_sheet_id.txt so every later run reuses the same
+  # sheet. Or paste the ID from an existing sheet's URL here to pin it
+  # (https://docs.google.com/spreadsheets/d/THIS_PART_HERE/edit).
+  spreadsheet_id: ""

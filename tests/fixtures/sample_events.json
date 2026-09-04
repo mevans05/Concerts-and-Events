@@ -1,0 +1,66 @@
+[
+  {
+    "id": "mock-concert-1",
+    "name": "Indie Rock Night: The Wandering Owls",
+    "url": "https://example.com/events/mock-concert-1",
+    "dates": {"start": {"dateTime": "2026-09-20T01:00:00Z", "localDate": "2026-09-19"}},
+    "classifications": [{"segment": {"name": "Music"}, "genre": {"name": "Rock"}, "subGenre": {"name": "Indie Rock"}}],
+    "_embedded": {"venues": [{"name": "The Bluebird Theater", "city": {"name": "Denver"}}]}
+  },
+  {
+    "id": "mock-art-1",
+    "name": "Modern Sculpture Gallery Opening",
+    "url": "https://example.com/events/mock-art-1",
+    "dates": {"start": {"dateTime": "2026-09-25T00:00:00Z", "localDate": "2026-09-24"}},
+    "classifications": [{"segment": {"name": "Arts & Theatre"}, "genre": {"name": "Fine Art"}, "subGenre": {"name": "Sculpture"}}],
+    "_embedded": {"venues": [{"name": "Denver Art Museum", "city": {"name": "Denver"}}]}
+  },
+  {
+    "id": "mock-comedy-1",
+    "name": "Stand-Up Showcase feat. Dana Marlow",
+    "url": "https://example.com/events/mock-comedy-1",
+    "dates": {"start": {"dateTime": "2026-09-18T02:00:00Z", "localDate": "2026-09-17"}},
+    "classifications": [{"segment": {"name": "Arts & Theatre"}, "genre": {"name": "Comedy"}, "subGenre": {"name": "Stand-Up"}}],
+    "_embedded": {"venues": [{"name": "Comedy Works", "city": {"name": "Denver"}}]}
+  },
+  {
+    "id": "mock-cultural-1",
+    "name": "Diwali Festival of Lights Celebration",
+    "url": "https://example.com/events/mock-cultural-1",
+    "dates": {"start": {"dateTime": "2026-10-05T22:00:00Z", "localDate": "2026-10-05"}},
+    "classifications": [{"segment": {"name": "Arts & Theatre"}, "genre": {"name": "Cultural"}, "subGenre": {"name": "Undefined"}}],
+    "_embedded": {"venues": [{"name": "Civic Center Park", "city": {"name": "Denver"}}]}
+  },
+  {
+    "id": "mock-fair-1",
+    "name": "Rocky Mountain Harvest Fair",
+    "url": "https://example.com/events/mock-fair-1",
+    "dates": {"start": {"dateTime": "2026-09-27T16:00:00Z", "localDate": "2026-09-27"}},
+    "classifications": [{"segment": {"name": "Miscellaneous"}, "genre": {"name": "Fair & Festivals"}, "subGenre": {"name": "Undefined"}}],
+    "_embedded": {"venues": [{"name": "National Western Complex", "city": {"name": "Denver"}}]}
+  },
+  {
+    "id": "mock-beer-1",
+    "name": "Mile High Craft Brewery Fest",
+    "url": "https://example.com/events/mock-beer-1",
+    "dates": {"start": {"dateTime": "2026-09-13T19:00:00Z", "localDate": "2026-09-13"}},
+    "classifications": [{"segment": {"name": "Miscellaneous"}, "genre": {"name": "Food & Drink"}, "subGenre": {"name": "Undefined"}}],
+    "_embedded": {"venues": [{"name": "Mission Ballroom Lot", "city": {"name": "Denver"}}]}
+  },
+  {
+    "id": "mock-rugby-1",
+    "name": "Denver Rugby Sevens Invitational",
+    "url": "https://example.com/events/mock-rugby-1",
+    "dates": {"start": {"dateTime": "2026-09-21T18:00:00Z", "localDate": "2026-09-21"}},
+    "classifications": [{"segment": {"name": "Sports"}, "genre": {"name": "Rugby"}, "subGenre": {"name": "Undefined"}}],
+    "_embedded": {"venues": [{"name": "Infinity Park", "city": {"name": "Denver"}}]}
+  },
+  {
+    "id": "mock-other-sport-1",
+    "name": "Denver Minor League Hockey vs. Rapids",
+    "url": "https://example.com/events/mock-other-sport-1",
+    "dates": {"start": {"dateTime": "2026-09-19T01:00:00Z", "localDate": "2026-09-18"}},
+    "classifications": [{"segment": {"name": "Sports"}, "genre": {"name": "Hockey"}, "subGenre": {"name": "Undefined"}}],
+    "_embedded": {"venues": [{"name": "Ball Arena", "city": {"name": "Denver"}}]}
+  }
+]
