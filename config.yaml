@@ -36,3 +36,40 @@ categories:
   "Brewery/Beer": true
   Rugby: true
   Other: false
+
+# Optional: pull in your personal Google Calendar and/or public calendar
+# feeds. See README.md "Google Calendar setup" for the one-time OAuth step
+# needed for `enabled: true` below (public_feeds alone need no auth).
+google_calendar:
+  # Requires GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_REFRESH_TOKEN
+  # (see scripts/google_oauth_setup.py). Leave false to skip personal
+  # calendar access entirely and still use public_feeds below.
+  enabled: false
+  calendar_id: "primary"
+
+  # Flag (don't drop) recommended events that overlap something already on
+  # your calendar, with this many minutes of buffer on each side.
+  conflict_buffer_minutes: 30
+  # Set true to drop conflicting events from recommendations entirely
+  # instead of just flagging them in the "Calendar Conflict" column.
+  exclude_conflicts: false
+
+  # Treat a past calendar event that matches a recommended event (same day,
+  # similar title) as implicit "Attended" feedback.
+  learn_from_past_events: true
+  # How many days back to check for newly-passed events each run.
+  attendance_lookback_days: 3
+
+  # Public iCal feeds to pull events from directly — no personal auth
+  # needed. Good for a venue's published schedule, a league's fixture
+  # calendar, or a public Google Calendar's "Secret address in iCal
+  # format" (Calendar settings -> Integrate calendar).
+  public_feeds: []
+  # Example:
+  # public_feeds:
+  #   - name: "riverside-brewery"
+  #     url: "https://example.com/riverside-brewery/events.ics"
+  #     category_hint: "Brewery/Beer"
+  #   - name: "city-rugby-club"
+  #     url: "https://example.com/rugby-club/fixtures.ics"
+  #     category_hint: "Rugby"

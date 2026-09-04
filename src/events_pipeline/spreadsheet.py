@@ -8,10 +8,15 @@ Sheets:
   Preferences  - a read-only dump of the current learned weights, rewritten
                   every run so you can see what the model has picked up.
 
-Column A (Event ID) and column L (Learned As) are internal bookkeeping:
-Event ID is Ticketmaster's id, used to avoid ever recommending the same
-event twice. Learned As records the Feedback value already folded into the
-preference model, so we only learn from a feedback change once.
+Event ID and Learned As are internal bookkeeping (hidden columns): Event ID
+namespaces the source ("tm:" Ticketmaster, "ics:<feed>:" a public calendar
+feed) so an id can never collide across sources, and is used to avoid ever
+recommending the same event twice. Learned As records the Feedback value
+already folded into the preference model, so a feedback change is only
+learned from once. Feedback Source distinguishes feedback you typed
+yourself from "Calendar (auto)" — inferred because a matching event showed
+up on your own Google Calendar. Calendar Conflict flags events that
+overlap something already on your calendar; it doesn't affect ranking.
 """
 from __future__ import annotations
 
@@ -27,6 +32,7 @@ from .categorize import CategorizedEvent
 from .preferences import Preferences
 
 FEEDBACK_OPTIONS = ["Interested", "Maybe", "Not Interested", "Attended"]
+AUTO_FEEDBACK_SOURCE = "Calendar (auto)"
 
 EVENT_HEADERS = [
     "Event ID",
@@ -40,8 +46,29 @@ EVENT_HEADERS = [
     "Score",
     "Ticket URL",
     "Feedback",
+    "Feedback Source",
+    "Calendar Conflict",
     "Learned As",
 ]
+
+(
+    COL_EVENT_ID,
+    COL_DATE_ADDED,
+    COL_NAME,
+    COL_CATEGORY,
+    COL_EVENT_DATE,
+    COL_VENUE,
+    COL_CITY,
+    COL_GENRE,
+    COL_SCORE,
+    COL_URL,
+    COL_FEEDBACK,
+    COL_FEEDBACK_SOURCE,
+    COL_CONFLICT,
+    COL_LEARNED_AS,
+) = range(1, len(EVENT_HEADERS) + 1)
+
+DATA_SHEETS = ("Events", "History")
 
 PREF_HEADERS = ["Type", "Key", "Weight"]
 
@@ -58,22 +85,38 @@ def _style_header(ws, ncols: int) -> None:
     ws.auto_filter.ref = f"A1:{get_column_letter(ncols)}1"
 
 
+def _format_data_sheet(ws) -> None:
+    _style_header(ws, len(EVENT_HEADERS))
+    ws.column_dimensions[get_column_letter(COL_EVENT_ID)].hidden = True
+    ws.column_dimensions[get_column_letter(COL_LEARNED_AS)].hidden = True
+    widths = {
+        COL_DATE_ADDED: 12,
+        COL_NAME: 42,
+        COL_CATEGORY: 12,
+        COL_EVENT_DATE: 20,
+        COL_VENUE: 24,
+        COL_CITY: 16,
+        COL_GENRE: 14,
+        COL_SCORE: 8,
+        COL_URL: 40,
+        COL_FEEDBACK: 15,
+        COL_FEEDBACK_SOURCE: 16,
+        COL_CONFLICT: 12,
+    }
+    for col, width in widths.items():
+        ws.column_dimensions[get_column_letter(col)].width = width
+
+
 def _new_workbook() -> Workbook:
     wb = Workbook()
     events_ws = wb.active
     events_ws.title = "Events"
     events_ws.append(EVENT_HEADERS)
-    _style_header(events_ws, len(EVENT_HEADERS))
-    events_ws.column_dimensions["A"].hidden = True
-    events_ws.column_dimensions["L"].hidden = True
-    for letter, width in zip("BCDEFGHIJK", [12, 42, 12, 18, 26, 20, 16, 8, 40, 15]):
-        events_ws.column_dimensions[letter].width = width
+    _format_data_sheet(events_ws)
 
     history_ws = wb.create_sheet("History")
     history_ws.append(EVENT_HEADERS)
-    _style_header(history_ws, len(EVENT_HEADERS))
-    history_ws.column_dimensions["A"].hidden = True
-    history_ws.column_dimensions["L"].hidden = True
+    _format_data_sheet(history_ws)
 
     prefs_ws = wb.create_sheet("Preferences")
     prefs_ws.append(PREF_HEADERS)
@@ -91,14 +134,15 @@ def _apply_feedback_validation(ws) -> None:
         showDropDown=False,
     )
     ws.add_data_validation(dv)
+    col = get_column_letter(COL_FEEDBACK)
     # Generous range so the dropdown still applies to rows added later.
-    dv.add(f"K2:K{max(ws.max_row, 2) + 2000}")
+    dv.add(f"{col}2:{col}{max(ws.max_row, 2) + 2000}")
 
 
 def open_workbook(path: str) -> Workbook:
     if os.path.exists(path):
         wb = load_workbook(path)
-        if "Events" not in wb.sheetnames or "History" not in wb.sheetnames or "Preferences" not in wb.sheetnames:
+        if any(name not in wb.sheetnames for name in (*DATA_SHEETS, "Preferences")):
             raise ValueError(f"{path} exists but is missing expected sheets (Events/History/Preferences)")
         return wb
     return _new_workbook()
@@ -111,7 +155,7 @@ def save_workbook(wb: Workbook, path: str) -> None:
 
 def known_event_ids(wb: Workbook) -> set[str]:
     ids: set[str] = set()
-    for sheet_name in ("Events", "History"):
+    for sheet_name in DATA_SHEETS:
         ws = wb[sheet_name]
         for row in ws.iter_rows(min_row=2, values_only=True):
             if row and row[0]:
@@ -119,39 +163,80 @@ def known_event_ids(wb: Workbook) -> set[str]:
     return ids
 
 
+def _parse_event_date(value) -> dt.date | None:
+    if not value:
+        return None
+    try:
+        return dt.datetime.fromisoformat(str(value).replace("Z", "+00:00")).date()
+    except ValueError:
+        return None
+
+
 def pending_feedback_rows(wb: Workbook) -> list[dict]:
-    """Rows in Events where Feedback differs from the last-learned value."""
-    ws = wb["Events"]
+    """Rows (in Events or History) where Feedback differs from the
+    last-learned value — covers both feedback you typed and feedback the
+    attendance matcher auto-filled."""
     pending = []
-    for row_idx in range(2, ws.max_row + 1):
-        event_id = ws.cell(row=row_idx, column=1).value
-        feedback = ws.cell(row=row_idx, column=11).value
-        learned_as = ws.cell(row=row_idx, column=12).value
-        if not event_id or not feedback:
-            continue
-        if feedback == learned_as:
-            continue
-        pending.append(
-            {
-                "row": row_idx,
-                "event_id": str(event_id),
-                "name": ws.cell(row=row_idx, column=3).value,
-                "category": ws.cell(row=row_idx, column=4).value,
-                "genre": ws.cell(row=row_idx, column=8).value,
-                "venue": ws.cell(row=row_idx, column=6).value,
-                "feedback": feedback,
-            }
-        )
+    for sheet_name in DATA_SHEETS:
+        ws = wb[sheet_name]
+        for row_idx in range(2, ws.max_row + 1):
+            event_id = ws.cell(row=row_idx, column=COL_EVENT_ID).value
+            feedback = ws.cell(row=row_idx, column=COL_FEEDBACK).value
+            learned_as = ws.cell(row=row_idx, column=COL_LEARNED_AS).value
+            if not event_id or not feedback or feedback == learned_as:
+                continue
+            pending.append(
+                {
+                    "sheet": sheet_name,
+                    "row": row_idx,
+                    "event_id": str(event_id),
+                    "name": ws.cell(row=row_idx, column=COL_NAME).value,
+                    "category": ws.cell(row=row_idx, column=COL_CATEGORY).value,
+                    "genre": ws.cell(row=row_idx, column=COL_GENRE).value,
+                    "venue": ws.cell(row=row_idx, column=COL_VENUE).value,
+                    "feedback": feedback,
+                }
+            )
     return pending
 
 
-def mark_learned(wb: Workbook, row: int, feedback_value: str) -> None:
-    wb["Events"].cell(row=row, column=12).value = feedback_value
+def mark_learned(wb: Workbook, sheet: str, row: int, feedback_value: str) -> None:
+    wb[sheet].cell(row=row, column=COL_LEARNED_AS).value = feedback_value
 
 
-def append_events(wb: Workbook, scored_events: list[tuple[CategorizedEvent, float]], today: dt.date) -> None:
+def rows_needing_attendance_check(wb: Workbook) -> list[dict]:
+    """Rows with no feedback yet, across both sheets — candidates the
+    attendance matcher can propose "Attended" for."""
+    candidates = []
+    for sheet_name in DATA_SHEETS:
+        ws = wb[sheet_name]
+        for row_idx in range(2, ws.max_row + 1):
+            event_id = ws.cell(row=row_idx, column=COL_EVENT_ID).value
+            if not event_id:
+                continue
+            if ws.cell(row=row_idx, column=COL_FEEDBACK).value:
+                continue
+            candidates.append(
+                {
+                    "sheet": sheet_name,
+                    "row": row_idx,
+                    "name": ws.cell(row=row_idx, column=COL_NAME).value or "",
+                    "event_date": _parse_event_date(ws.cell(row=row_idx, column=COL_EVENT_DATE).value),
+                }
+            )
+    return candidates
+
+
+def apply_attendance_matches(wb: Workbook, matches: list[dict]) -> None:
+    for match in matches:
+        ws = wb[match["sheet"]]
+        ws.cell(row=match["row"], column=COL_FEEDBACK).value = "Attended"
+        ws.cell(row=match["row"], column=COL_FEEDBACK_SOURCE).value = AUTO_FEEDBACK_SOURCE
+
+
+def append_events(wb: Workbook, scored_events: list[tuple[CategorizedEvent, float, bool]], today: dt.date) -> None:
     ws = wb["Events"]
-    for event, score in scored_events:
+    for event, score, has_conflict in scored_events:
         ws.append(
             [
                 event.event_id,
@@ -166,6 +251,8 @@ def append_events(wb: Workbook, scored_events: list[tuple[CategorizedEvent, floa
                 event.url,
                 None,
                 None,
+                "Yes" if has_conflict else None,
+                None,
             ]
         )
     _apply_feedback_validation(ws)
@@ -177,15 +264,8 @@ def move_past_events_to_history(wb: Workbook, today: dt.date) -> int:
     keep_rows = [EVENT_HEADERS]
     moved = 0
     for row in events_ws.iter_rows(min_row=2, values_only=True):
-        event_date_raw = row[4]
-        is_past = False
-        if event_date_raw:
-            try:
-                event_date = dt.datetime.fromisoformat(str(event_date_raw).replace("Z", "+00:00")).date()
-                is_past = event_date < today
-            except ValueError:
-                is_past = False
-        if is_past:
+        event_date = _parse_event_date(row[COL_EVENT_DATE - 1])
+        if event_date and event_date < today:
             history_ws.append(list(row))
             moved += 1
         else:
@@ -194,9 +274,7 @@ def move_past_events_to_history(wb: Workbook, today: dt.date) -> int:
     events_ws.delete_rows(1, events_ws.max_row)
     for row in keep_rows:
         events_ws.append(row)
-    _style_header(events_ws, len(EVENT_HEADERS))
-    events_ws.column_dimensions["A"].hidden = True
-    events_ws.column_dimensions["L"].hidden = True
+    _format_data_sheet(events_ws)
     _apply_feedback_validation(events_ws)
     return moved
 

@@ -35,6 +35,9 @@ def main(argv=None) -> int:
         print(f"Events moved to History: {summary.events_moved_to_history}")
         print(f"New candidate events considered: {summary.new_events_fetched}")
         print(f"New events recommended today: {summary.new_events_recommended}")
+        if summary.google_calendar_active:
+            print(f"Calendar conflicts flagged: {summary.conflicts_flagged}")
+            print(f"Attendance auto-learned from calendar: {summary.attendance_auto_learned}")
         if summary.used_mock_data:
             print("NOTE: ran on sample/mock data (no TICKETMASTER_API_KEY set).")
     return 0

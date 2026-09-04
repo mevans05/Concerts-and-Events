@@ -27,6 +27,17 @@ class Location:
 
 
 @dataclass
+class GoogleCalendarConfig:
+    enabled: bool = False
+    calendar_id: str = "primary"
+    conflict_buffer_minutes: int = 30
+    exclude_conflicts: bool = False
+    learn_from_past_events: bool = True
+    attendance_lookback_days: int = 3
+    public_feeds: list = field(default_factory=list)
+
+
+@dataclass
 class Config:
     location: Location
     lookahead_days: int = 30
@@ -34,6 +45,7 @@ class Config:
     min_score_threshold: float = 0.35
     learning_rate: float = 0.15
     categories: dict = field(default_factory=lambda: dict(DEFAULT_CATEGORIES))
+    google_calendar: GoogleCalendarConfig = field(default_factory=GoogleCalendarConfig)
 
     def category_enabled(self, category: str) -> bool:
         return self.categories.get(category, False)
@@ -54,6 +66,17 @@ def load_config(path: str = "config.yaml") -> Config:
     categories = dict(DEFAULT_CATEGORIES)
     categories.update(raw.get("categories", {}))
 
+    gcal_raw = raw.get("google_calendar", {}) or {}
+    google_calendar = GoogleCalendarConfig(
+        enabled=bool(gcal_raw.get("enabled", False)),
+        calendar_id=gcal_raw.get("calendar_id", "primary"),
+        conflict_buffer_minutes=int(gcal_raw.get("conflict_buffer_minutes", 30)),
+        exclude_conflicts=bool(gcal_raw.get("exclude_conflicts", False)),
+        learn_from_past_events=bool(gcal_raw.get("learn_from_past_events", True)),
+        attendance_lookback_days=int(gcal_raw.get("attendance_lookback_days", 3)),
+        public_feeds=list(gcal_raw.get("public_feeds", []) or []),
+    )
+
     return Config(
         location=location,
         lookahead_days=int(raw.get("lookahead_days", 30)),
@@ -61,8 +84,9 @@ def load_config(path: str = "config.yaml") -> Config:
         min_score_threshold=float(raw.get("min_score_threshold", 0.35)),
         learning_rate=float(raw.get("learning_rate", 0.15)),
         categories=categories,
+        google_calendar=google_calendar,
     )
 
 
-def get_api_key() -> str | None:
+def get_ticketmaster_api_key() -> str | None:
     return os.environ.get("TICKETMASTER_API_KEY")

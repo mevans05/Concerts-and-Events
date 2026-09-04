@@ -1,7 +1,7 @@
 import json
 import os
 
-from events_pipeline.categorize import categorize_event
+from events_pipeline.categorize import categorize_ticketmaster_raw
 
 FIXTURE_PATH = os.path.join(os.path.dirname(__file__), "fixtures", "sample_events.json")
 
@@ -31,26 +31,26 @@ def test_all_fixture_events_categorized_as_expected():
     events = _load_fixture()
     for event_id, expected_category in EXPECTED.items():
         raw = _by_id(events, event_id)
-        result = categorize_event(raw)
+        result = categorize_ticketmaster_raw(raw)
         assert result.category == expected_category, f"{event_id}: got {result.category}"
 
 
 def test_beer_keyword_overrides_misc_classification():
     raw = _by_id(_load_fixture(), "mock-beer-1")
-    result = categorize_event(raw)
+    result = categorize_ticketmaster_raw(raw)
     assert result.category == "Brewery/Beer"
 
 
 def test_extracts_venue_and_city():
     raw = _by_id(_load_fixture(), "mock-rugby-1")
-    result = categorize_event(raw)
+    result = categorize_ticketmaster_raw(raw)
     assert result.venue == "Infinity Park"
     assert result.city == "Denver"
 
 
 def test_keywords_exclude_stopwords():
     raw = _by_id(_load_fixture(), "mock-comedy-1")
-    result = categorize_event(raw)
+    result = categorize_ticketmaster_raw(raw)
     assert "feat" not in result.keywords
     assert "the" not in result.keywords
     assert "dana" in result.keywords
