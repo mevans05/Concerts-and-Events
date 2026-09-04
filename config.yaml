@@ -1,0 +1,7 @@
+location:
+  city: "Franklin"
+  state_code: "MA"
+  postal_code: "02038"
+  country_code: "US"
+  radius: 60
+  unit: "miles"
