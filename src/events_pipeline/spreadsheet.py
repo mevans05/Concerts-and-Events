@@ -284,16 +284,7 @@ def write_preferences_sheet(wb: Workbook, prefs: Preferences) -> None:
     ws.delete_rows(1, ws.max_row)
     ws.append(PREF_HEADERS)
     _style_header(ws, len(PREF_HEADERS))
-    rows = []
-    for key, weight in sorted(prefs.categories.items()):
-        rows.append(("Category", key, weight))
-    for key, weight in sorted(prefs.genres.items()):
-        rows.append(("Genre", key, weight))
-    for key, weight in sorted(prefs.venues.items()):
-        rows.append(("Venue", key, weight))
-    for key, weight in sorted(prefs.keywords.items(), key=lambda kv: -kv[1]):
-        rows.append(("Keyword", key, weight))
-    for row in rows:
+    for row in prefs.to_rows():
         ws.append(row)
     ws.column_dimensions["A"].width = 14
     ws.column_dimensions["B"].width = 28

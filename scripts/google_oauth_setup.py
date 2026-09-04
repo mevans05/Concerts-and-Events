@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
-"""One-time setup: mints a Google OAuth refresh token for personal Google
-Calendar access (used for conflict-checking and attendance learning).
+"""One-time setup: mints a Google OAuth refresh token covering both
+personal Google Calendar access (conflict-checking, attendance learning)
+and Google Sheets access (read/write the live events spreadsheet). One
+token, both scopes — you don't need to run this twice.
 
 Before running this:
   1. In the Google Cloud Console, create (or reuse) a project and enable
-     the "Google Calendar API" (APIs & Services -> Library).
+     both the "Google Calendar API" and the "Google Sheets API"
+     (APIs & Services -> Library).
   2. Create OAuth client credentials of type "Desktop app"
      (APIs & Services -> Credentials -> Create Credentials -> OAuth client
      ID) and note the Client ID and Client Secret.
@@ -20,7 +23,12 @@ once you approve access exchanges the resulting code for a refresh
 token. Save the printed values as GitHub repo secrets (Settings ->
 Secrets and variables -> Actions):
   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN
-Then set google_calendar.enabled: true in config.yaml.
+Then set google_calendar.enabled: true and/or google_sheets.enabled: true
+in config.yaml, as you like.
+
+If you already ran this script before Sheets support existed, your old
+refresh token only has the Calendar scope — run it again to mint a new
+one covering both (Google will ask you to re-consent).
 """
 from __future__ import annotations
 
@@ -36,7 +44,7 @@ REDIRECT_PORT = 8765
 REDIRECT_URI = f"http://localhost:{REDIRECT_PORT}"
 AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_URL = "https://oauth2.googleapis.com/token"
-SCOPE = "https://www.googleapis.com/auth/calendar.readonly"
+SCOPE = "https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/spreadsheets"
 
 
 class _CodeCatcher(http.server.BaseHTTPRequestHandler):

@@ -68,6 +68,45 @@ class Preferences:
                 sort_keys=True,
             )
 
+    @classmethod
+    def from_rows(cls, rows) -> "Preferences":
+        """Rebuilds weights from (Type, Key, Weight) rows — the same shape
+        the Preferences sheet/tab is written in. Used by the Google Sheets
+        backend, where that sheet is the persisted source of truth instead
+        of a local JSON file."""
+        prefs = cls()
+        targets = {
+            "Category": prefs.categories,
+            "Genre": prefs.genres,
+            "Venue": prefs.venues,
+            "Keyword": prefs.keywords,
+        }
+        for row in rows:
+            if not row or len(row) < 3:
+                continue
+            type_, key, weight = row[0], row[1], row[2]
+            target = targets.get(type_)
+            if target is None or key in (None, "") or weight in (None, ""):
+                continue
+            try:
+                target[str(key)] = float(weight)
+            except (TypeError, ValueError):
+                continue
+        return prefs
+
+    def to_rows(self) -> list[tuple]:
+        """(Type, Key, Weight) rows for the Preferences sheet/tab."""
+        rows = []
+        for key, weight in sorted(self.categories.items()):
+            rows.append(("Category", key, weight))
+        for key, weight in sorted(self.genres.items()):
+            rows.append(("Genre", key, weight))
+        for key, weight in sorted(self.venues.items()):
+            rows.append(("Venue", key, weight))
+        for key, weight in sorted(self.keywords.items(), key=lambda kv: -kv[1]):
+            rows.append(("Keyword", key, weight))
+        return rows
+
     def score(self, event: CategorizedEvent) -> float:
         score = self.categories.get(event.category, DEFAULT_WEIGHT)
         if event.genre:

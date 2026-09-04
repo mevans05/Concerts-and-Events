@@ -31,6 +31,7 @@ def main(argv=None) -> int:
             preferences_path=args.preferences,
             mock=args.mock,
         )
+        print(f"Workbook: {summary.workbook_location}" + (" (Google Sheet)" if summary.google_sheets_active else " (local file)"))
         print(f"Feedback learned from: {summary.feedback_processed} event(s)")
         print(f"Events moved to History: {summary.events_moved_to_history}")
         print(f"New candidate events considered: {summary.new_events_fetched}")

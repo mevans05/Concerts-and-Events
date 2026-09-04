@@ -15,18 +15,21 @@ from __future__ import annotations
 
 import datetime as dt
 import logging
-import os
 from dataclasses import dataclass
 
 import requests
 
+from .google_auth import GoogleApiError
+
 log = logging.getLogger(__name__)
 
-TOKEN_URL = "https://oauth2.googleapis.com/token"
 FREEBUSY_URL = "https://www.googleapis.com/calendar/v3/freeBusy"
 EVENTS_URL_TMPL = "https://www.googleapis.com/calendar/v3/calendars/{calendar_id}/events"
 REQUEST_TIMEOUT = 15
 DEFAULT_EVENT_DURATION = dt.timedelta(hours=2)
+
+# Kept as an alias: existing code/tests may still refer to this name.
+GoogleCalendarUnavailable = GoogleApiError
 
 
 @dataclass
@@ -40,35 +43,6 @@ class PastCalendarEvent:
     name: str
     start: dt.datetime | None
     location: str | None
-
-
-class GoogleCalendarUnavailable(RuntimeError):
-    pass
-
-
-def credentials_from_env() -> dict | None:
-    client_id = os.environ.get("GOOGLE_CLIENT_ID")
-    client_secret = os.environ.get("GOOGLE_CLIENT_SECRET")
-    refresh_token = os.environ.get("GOOGLE_REFRESH_TOKEN")
-    if not (client_id and client_secret and refresh_token):
-        return None
-    return {"client_id": client_id, "client_secret": client_secret, "refresh_token": refresh_token}
-
-
-def get_access_token(creds: dict) -> str:
-    resp = requests.post(
-        TOKEN_URL,
-        data={
-            "client_id": creds["client_id"],
-            "client_secret": creds["client_secret"],
-            "refresh_token": creds["refresh_token"],
-            "grant_type": "refresh_token",
-        },
-        timeout=REQUEST_TIMEOUT,
-    )
-    if not resp.ok:
-        raise GoogleCalendarUnavailable(f"Token refresh failed ({resp.status_code}): {resp.text[:300]}")
-    return resp.json()["access_token"]
 
 
 def _parse_rfc3339(value: str) -> dt.datetime:
@@ -87,7 +61,7 @@ def fetch_busy_intervals(access_token: str, calendar_id: str, time_min: dt.datet
         timeout=REQUEST_TIMEOUT,
     )
     if not resp.ok:
-        raise GoogleCalendarUnavailable(f"freeBusy query failed ({resp.status_code}): {resp.text[:300]}")
+        raise GoogleApiError(f"freeBusy query failed ({resp.status_code}): {resp.text[:300]}")
     payload = resp.json()
     busy_raw = (payload.get("calendars", {}).get(calendar_id, {}) or {}).get("busy", [])
     return [BusyInterval(start=_parse_rfc3339(b["start"]), end=_parse_rfc3339(b["end"])) for b in busy_raw]
@@ -105,7 +79,7 @@ def fetch_past_events(access_token: str, calendar_id: str, time_min: dt.datetime
     url = EVENTS_URL_TMPL.format(calendar_id=calendar_id)
     resp = requests.get(url, headers={"Authorization": f"Bearer {access_token}"}, params=params, timeout=REQUEST_TIMEOUT)
     if not resp.ok:
-        raise GoogleCalendarUnavailable(f"events.list failed ({resp.status_code}): {resp.text[:300]}")
+        raise GoogleApiError(f"events.list failed ({resp.status_code}): {resp.text[:300]}")
     for item in resp.json().get("items", []):
         start_raw = (item.get("start") or {}).get("dateTime") or (item.get("start") or {}).get("date")
         start = _parse_rfc3339(start_raw) if start_raw and "T" in start_raw else None

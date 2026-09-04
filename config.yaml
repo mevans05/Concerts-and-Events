@@ -81,3 +81,19 @@ google_calendar:
   #   - name: "city-rugby-club"
   #     url: "https://example.com/rugby-club/fixtures.ics"
   #     category_hint: "Rugby"
+
+# Read/write the workbook as a live Google Sheet instead of the local
+# data/events.xlsx file — open it in a browser, edit the Feedback column
+# from your phone, no downloading/uploading a file. Reuses the exact same
+# credentials as google_calendar above (GOOGLE_CLIENT_ID /
+# GOOGLE_CLIENT_SECRET / GOOGLE_REFRESH_TOKEN); see
+# scripts/google_oauth_setup.py, which now requests both Calendar and
+# Sheets scopes in one pass. Falls back to the local .xlsx file with a
+# warning if those secrets aren't set.
+google_sheets:
+  enabled: true
+  # Leave blank to auto-create a new sheet on first run — its ID is then
+  # cached in data/google_sheet_id.txt so every later run reuses the same
+  # sheet. Or paste the ID from an existing sheet's URL here to pin it
+  # (https://docs.google.com/spreadsheets/d/THIS_PART_HERE/edit).
+  spreadsheet_id: ""

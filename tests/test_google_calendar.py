@@ -1,6 +1,7 @@
 import datetime as dt
 
-from events_pipeline.google_calendar import BusyInterval, credentials_from_env, event_overlaps_busy
+from events_pipeline.google_auth import credentials_from_env
+from events_pipeline.google_calendar import BusyInterval, event_overlaps_busy
 
 
 def _busy(start_hour, end_hour, day=15):

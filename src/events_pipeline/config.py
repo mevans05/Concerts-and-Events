@@ -40,6 +40,14 @@ class GoogleCalendarConfig:
 
 
 @dataclass
+class GoogleSheetsConfig:
+    enabled: bool = False
+    # Leave blank to auto-create a sheet on first run (its ID is then
+    # cached in data/google_sheet_id.txt); set to pin a specific sheet.
+    spreadsheet_id: str = ""
+
+
+@dataclass
 class Config:
     location: Location
     lookahead_days: int = 30
@@ -48,6 +56,7 @@ class Config:
     learning_rate: float = 0.15
     categories: dict = field(default_factory=lambda: dict(DEFAULT_CATEGORIES))
     google_calendar: GoogleCalendarConfig = field(default_factory=GoogleCalendarConfig)
+    google_sheets: GoogleSheetsConfig = field(default_factory=GoogleSheetsConfig)
 
     def category_enabled(self, category: str) -> bool:
         return self.categories.get(category, False)
@@ -81,6 +90,12 @@ def load_config(path: str = "config.yaml") -> Config:
         public_feeds=list(gcal_raw.get("public_feeds", []) or []),
     )
 
+    gsheets_raw = raw.get("google_sheets", {}) or {}
+    google_sheets = GoogleSheetsConfig(
+        enabled=bool(gsheets_raw.get("enabled", False)),
+        spreadsheet_id=str(gsheets_raw.get("spreadsheet_id") or ""),
+    )
+
     return Config(
         location=location,
         lookahead_days=int(raw.get("lookahead_days", 30)),
@@ -89,6 +104,7 @@ def load_config(path: str = "config.yaml") -> Config:
         learning_rate=float(raw.get("learning_rate", 0.15)),
         categories=categories,
         google_calendar=google_calendar,
+        google_sheets=google_sheets,
     )
 
 

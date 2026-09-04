@@ -77,3 +77,33 @@ def test_save_and_load_round_trip(tmp_path):
 def test_load_missing_file_returns_defaults(tmp_path):
     prefs = Preferences.load(os.path.join(tmp_path, "does-not-exist.json"))
     assert prefs.categories == {}
+
+
+def test_to_rows_and_from_rows_round_trip():
+    prefs = Preferences()
+    liked = _event(category="Rugby", genre="Rugby", venue="Infinity Park", keywords=["rugby", "sevens"])
+    prefs.update(liked, "Interested", learning_rate=0.15)
+
+    rows = prefs.to_rows()
+    assert ("Category", "Rugby", prefs.categories["Rugby"]) in rows
+    assert ("Genre", "Rugby", prefs.genres["Rugby"]) in rows
+    assert ("Venue", "Infinity Park", prefs.venues["Infinity Park"]) in rows
+
+    rebuilt = Preferences.from_rows(rows)
+    assert rebuilt.categories == prefs.categories
+    assert rebuilt.genres == prefs.genres
+    assert rebuilt.venues == prefs.venues
+    assert rebuilt.keywords == prefs.keywords
+
+
+def test_from_rows_ignores_malformed_rows():
+    rows = [
+        ("Category", "Concert", 1.2),
+        ("Category", "Art", None),  # missing weight, skipped
+        ("Bogus", "X", 1.0),  # unknown type, skipped
+        ("Genre", "Rock",),  # too short, skipped
+        (),  # empty, skipped
+    ]
+    prefs = Preferences.from_rows(rows)
+    assert prefs.categories == {"Concert": 1.2}
+    assert prefs.genres == {}
